@@ -1,0 +1,54 @@
+/* static/style.css */
+
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    text-align: center;
+    margin: 0;
+    padding: 20px;
+}
+
+h3 {
+    margin-bottom: 20px;
+    color: #333;
+}
+
+#container {
+    position: relative;
+    display: inline-block;
+    border: 2px solid #333;
+    background: #000;
+}
+
+video, canvas {
+    width: 320px;
+    height: 320px;
+    display: block;
+    object-fit: cover;   /* fill the square, crop if needed */
+    object-position: center; /* keep it centered */
+}
+
+#controls {
+    margin-top: 15px;
+}
+
+button {
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    margin: 0 5px;
+    cursor: pointer;
+    font-size: 14px;
+    border-radius: 4px;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+select {
+    padding: 5px;
+    font-size: 14px;
+    margin-left: 5px;
+}
