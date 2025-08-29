@@ -1,12 +1,13 @@
 {
-  "model_name": "FastDepth-equivalent",
-  "architecture": "MobileNetV2 + Depth Head",
+  "model_name": "FastDepth MobileNetV2",
   "input_size": [
     320,
     320
   ],
-  "input_format": "RGB",
-  "output_format": "depth_map",
+  "output_size": [
+    320,
+    320
+  ],
   "preprocessing": {
     "normalize": true,
     "mean": [
@@ -21,8 +22,7 @@
     ]
   },
   "postprocessing": {
-    "depth_scale": 1000,
-    "min_depth": 0.1,
-    "max_depth": 10.0
+    "depth_scale": 1000.0,
+    "max_depth": 80.0
   }
 }
