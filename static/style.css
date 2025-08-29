@@ -28,6 +28,11 @@ video, canvas {
     object-position: center; /* keep it centered */
 }
 
+.performance-container {
+    display: flex;
+    flex-direction: column;
+}
+
 #controls {
     margin-top: 15px;
 }

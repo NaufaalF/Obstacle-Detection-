@@ -5,6 +5,10 @@ import cv2
 import torch
 from flask import Flask, render_template
 from flask_socketio import SocketIO, emit
+import matplotlib.pyplot as plt
+import time
+from collections import deque
+import io, base64
 
 app = Flask(__name__)
 # gunakan threading agar tidak butuh eventlet/gevent
@@ -52,6 +56,9 @@ CLASS_NAMES = ["Mobil", "Motor", "Orang", "Truk"]
 # )
 # model.to(device)
 # model.eval()
+
+latencies = deque(maxlen=60)  # store last 60 values
+timestamps = deque(maxlen=60)
 
 from ultralytics import YOLO
 
@@ -149,10 +156,43 @@ def handle_frame(data):
                     "alert": alert
                 })
 
-            emit("detections", {"detections": detections, "width": w, "height": h})
+            ts = data['ts']  # keep the timestamp
+
+            emit("detections", {
+                "detections": detections, 
+                "width": w, 
+                "height": h,
+                'ts': ts  # send back the timestamp
+                })
         except Exception as e:
             print("Error handling frame:", repr(e))
             return
+
+@socketio.on('latency')
+def handle_latency(data):
+    latency = data['latency']
+    latencies.append(latency)
+    timestamps.append(time.time())
+
+@socketio.on("plot")
+def send_plot():
+    # Create matplotlib figure
+    plt.clf()
+    plt.plot(list(timestamps), list(latencies), marker='o')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Latency (ms)')
+    plt.title('Latency Over Time (60s)')
+
+    # Save plot to a buffer
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png')
+    buf.seek(0)
+    img_base64 = base64.b64encode(buf.read()).decode('utf-8')
+    buf.close()
+
+    # Send image to client
+    socketio.emit('latency_plot', {'img': img_base64})
+    
 
 if __name__ == "__main__":
     # debug=False agar tidak spawn 2x
