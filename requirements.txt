@@ -1,0 +1,27 @@
+# Core Dependencies
+Flask==2.3.3
+Flask-SocketIO==5.3.6
+python-socketio==5.8.0
+python-engineio==4.7.1
+
+# Computer Vision & ML
+opencv-python==4.8.1.78
+numpy==1.24.3
+tensorflow==2.13.0
+
+# YOLO Dependencies  
+ultralytics==8.0.200
+torch>=1.13.0
+torchvision>=0.14.0
+
+# Threading & Async
+eventlet==0.33.3
+gevent==23.9.1
+
+# Optional: For better performance
+Pillow==10.0.1
+scikit-image==0.21.0
+
+# Development & Testing (optional)
+pytest==7.4.2
+pytest-cov==4.1.0

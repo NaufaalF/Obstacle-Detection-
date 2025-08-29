@@ -8,7 +8,7 @@ class FastDepthEstimator:
     Optimized for MobileNet-based architecture like original FastDepth
     """
     
-    def __init__(self, model_path="./models/mobilenet_depth.tflite", input_size=(320, 320)):
+    def __init__(self, model_path="models/mobilenet_depth.tflite", input_size=(320, 320)):
         self.model_path = model_path
         self.input_size = input_size
         
@@ -197,9 +197,9 @@ def test_fastdepth():
     
     # Check for FastDepth model
     model_paths = [
-        "models/mobilenet_depth.tflite",  # FastDepth equivalent
-        "models/fastdepth.tflite",        # Converted FastDepth
-        "models/midas_v21_small.tflite"   # Fallback
+        "models/midas_v21_small.tflite",     # Fixed download
+        "models/mobilenet_depth.tflite",     # Original (might be corrupted)  
+        "models/fastdepth.tflite"            # Converted FastDepth
     ]
     
     model_path = None
