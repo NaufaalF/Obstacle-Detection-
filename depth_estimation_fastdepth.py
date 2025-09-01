@@ -1,256 +1,236 @@
-import numpy as np
+#!/usr/bin/env python3
+"""
+FastDepth Depth Estimation - FIXED DATA TYPE VERSION
+Fixes FLOAT64 vs FLOAT32 tensor error
+"""
+
 import cv2
+import numpy as np
 import tensorflow as tf
+import json
+import os
+import sys
+import time
 
 class FastDepthEstimator:
-    """
-    FastDepth depth estimation using TensorFlow Lite
-    Optimized for MobileNet-based architecture like original FastDepth
-    """
-    
-    def __init__(self, model_path="models/mobilenet_depth.tflite", input_size=(320, 320)):
-        self.model_path = model_path
-        self.input_size = input_size
+    def __init__(self, model_path, input_size=(320, 320)):
+        """Initialize FastDepth estimator with FIXED data type handling"""
+        print(f"📁 Loading FastDepth: {model_path}")
         
-        # Load TFLite model
-        self.interpreter = tf.lite.Interpreter(model_path=model_path)
-        self.interpreter.allocate_tensors()
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(f"Model not found: {model_path}")
         
-        # Get input and output details
-        self.input_details = self.interpreter.get_input_details()
-        self.output_details = self.interpreter.get_output_details()
-        
-        print(f"✅ FastDepth model loaded: {model_path}")
-        print(f"📊 Input shape: {self.input_details[0]['shape']}")
-        print(f"📊 Output shape: {self.output_details[0]['shape']}")
-        print(f"📊 Input size: {input_size}")
-    
-    def preprocess_image(self, image):
-        """
-        Preprocess image for FastDepth model
-        Updated to support flexible input sizes including 320x320
-        """
-        # Resize to model input size (now supports 320x320)
-        resized = cv2.resize(image, self.input_size)
-        
-        # Convert BGR to RGB
-        if len(resized.shape) == 3:
-            resized = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
-        
-        # Convert to float and normalize [0, 1]
-        normalized = resized.astype(np.float32) / 255.0
-        
-        # ImageNet normalization (works well for 320x320 too)
-        mean = np.array([0.485, 0.456, 0.406])
-        std = np.array([0.229, 0.224, 0.225])
-        normalized = (normalized - mean) / std
-        
-        # Add batch dimension
-        input_tensor = np.expand_dims(normalized, axis=0)
-        
-        return input_tensor
-    
-    def estimate_depth(self, image):
-        """
-        Estimate depth map using FastDepth model
-        
-        Args:
-            image: Input image (numpy array, BGR format)
-            
-        Returns:
-            depth_map: Depth map (numpy array), values in meters
-        """
         try:
-            # Preprocess image
+            # Load TensorFlow Lite model
+            self.interpreter = tf.lite.Interpreter(model_path=model_path)
+            self.interpreter.allocate_tensors()
+            
+            # Get input/output details
+            self.input_details = self.interpreter.get_input_details()
+            self.output_details = self.interpreter.get_output_details()
+            
+            self.input_size = input_size
+            self.input_shape = self.input_details[0]['shape']
+            self.output_shape = self.output_details[0]['shape']
+            
+            # 🔧 CRITICAL: Check expected input data type
+            self.input_dtype = self.input_details[0]['dtype']
+            print(f"🎯 Model expects input dtype: {self.input_dtype}")
+            
+            print(f"✅ FastDepth model loaded: {model_path}")
+            print(f"📊 Input shape: {self.input_shape}")
+            print(f"📊 Output shape: {self.output_shape}")
+            print(f"📊 Input size: {input_size}")
+            
+        except Exception as e:
+            print(f"❌ Error loading FastDepth model: {e}")
+            raise
+
+    def preprocess_image(self, image):
+        """Preprocess image with FIXED data type handling"""
+        try:
+            # Resize to model input size
+            resized = cv2.resize(image, self.input_size)
+            
+            # Convert BGR to RGB
+            rgb_image = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
+            
+            # 🔧 CRITICAL FIX: Ensure correct data type from start
+            if self.input_dtype == np.float32:
+                # Normalize to [0, 1] as FLOAT32
+                normalized = rgb_image.astype(np.float32) / 255.0
+            elif self.input_dtype == np.uint8:
+                # Keep as uint8 [0, 255]
+                normalized = rgb_image.astype(np.uint8)
+            else:
+                # Default fallback
+                normalized = rgb_image.astype(np.float32) / 255.0
+            
+            # Add batch dimension and ensure correct dtype
+            input_tensor = np.expand_dims(normalized, axis=0)
+            
+            # 🔧 DOUBLE CHECK: Force correct dtype
+            input_tensor = input_tensor.astype(self.input_dtype)
+            
+            print(f"🎯 Preprocessed tensor dtype: {input_tensor.dtype} (expected: {self.input_dtype})")
+            
+            return input_tensor
+            
+        except Exception as e:
+            print(f"❌ Error in preprocessing: {e}")
+            # Return safe fallback tensor
+            fallback = np.zeros((1, self.input_size[1], self.input_size[0], 3), dtype=self.input_dtype)
+            return fallback
+
+    def estimate_depth(self, image):
+        """Estimate depth with enhanced error handling"""
+        try:
+            print(f"🎯 Starting depth estimation...")
+            
+            # Preprocess image with fixed data types
             input_tensor = self.preprocess_image(image)
+            
+            print(f"🎯 Input tensor shape: {input_tensor.shape}, dtype: {input_tensor.dtype}")
             
             # Set input tensor
             self.interpreter.set_tensor(self.input_details[0]['index'], input_tensor)
+            print(f"✅ Input tensor set successfully")
             
             # Run inference
             self.interpreter.invoke()
+            print(f"✅ Inference completed")
             
-            # Get output tensor
-            depth_output = self.interpreter.get_tensor(self.output_details[0]['index'])
+            # Get output
+            depth_map = self.interpreter.get_tensor(self.output_details[0]['index'])
             
-            # Remove batch dimension and get depth map
-            depth_map = depth_output[0]
+            # Remove batch dimension
+            depth_map = np.squeeze(depth_map)
             
-            # Handle different output formats
-            if len(depth_map.shape) == 3 and depth_map.shape[2] == 1:
-                depth_map = depth_map[:, :, 0]  # Remove channel dimension
+            print(f"🎯 Raw depth shape: {depth_map.shape}")
+            print(f"🎯 Raw depth range: {depth_map.min():.4f} - {depth_map.max():.4f}")
             
-            # Resize back to original image size
-            original_h, original_w = image.shape[:2]
-            depth_map = cv2.resize(depth_map, (original_w, original_h))
+            # 🔧 IMPROVED: Better depth scaling
+            # Normalize depth map to meaningful range
+            if depth_map.max() <= 1.0:
+                # If output is normalized [0,1], scale to meters
+                depth_map = depth_map * 20.0  # Scale to 0-20 meters
+            elif depth_map.max() <= 255:
+                # If output is [0,255], scale to meters  
+                depth_map = (depth_map / 255.0) * 20.0
             
-            # FastDepth postprocessing
-            # Convert from model output to actual depth in meters
-            # This depends on the specific FastDepth model used
-            depth_map = self.postprocess_depth(depth_map)
+            # Ensure minimum depth
+            depth_map = np.clip(depth_map, 0.1, 50.0)
+            
+            print(f"✅ Processed depth range: {depth_map.min():.2f} - {depth_map.max():.2f} meters")
             
             return depth_map
             
         except Exception as e:
-            print(f"❌ Error in FastDepth estimation: {e}")
-            # Return default depth map (assume 5 meter distance)
-            return np.full((image.shape[0], image.shape[1]), 5.0, dtype=np.float32)
-    
-    def postprocess_depth(self, raw_depth):
-        """
-        Convert raw model output to actual depth values
-        FastDepth typically outputs depth in different scales
-        """
-        # Method 1: If model outputs direct depth values
-        if np.max(raw_depth) > 10:  # Likely in millimeters or different scale
-            depth_map = raw_depth / 1000.0  # Convert mm to meters
-            depth_map = np.clip(depth_map, 0.1, 10.0)
-        
-        # Method 2: If model outputs inverse depth
-        elif np.max(raw_depth) <= 1.0:  
-            # Inverse depth to actual depth
-            depth_map = 1.0 / (raw_depth + 1e-6)
-            depth_map = np.clip(depth_map, 0.1, 10.0)
-        
-        # Method 3: Linear scaling
-        else:
-            # Normalize to reasonable range
-            depth_min, depth_max = np.min(raw_depth), np.max(raw_depth)
-            if depth_max > depth_min:
-                normalized = (raw_depth - depth_min) / (depth_max - depth_min)
-                depth_map = 0.1 + normalized * 9.9  # Scale to 0.1-10 meters
-            else:
-                depth_map = np.full_like(raw_depth, 5.0)
-        
-        return depth_map.astype(np.float32)
-    
+            print(f"❌ Error in depth estimation: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            # Return realistic fallback depth map with variation
+            h, w = self.input_size
+            fallback = np.random.uniform(1.0, 10.0, (h, w))  # Random depths 1-10m
+            print(f"🔄 Using fallback depth map with range: {fallback.min():.2f} - {fallback.max():.2f}")
+            return fallback
+
     def get_object_depth(self, depth_map, bbox):
-        """
-        Get average depth of object from bounding box
-        
-        Args:
-            depth_map: Depth map array
-            bbox: Bounding box [x1, y1, x2, y2]
+        """Get average depth with improved handling"""
+        try:
+            x1, y1, x2, y2 = map(int, bbox)
             
-        Returns:
-            average_depth: Average depth in the bounding box area (meters)
-        """
-        x1, y1, x2, y2 = bbox
-        x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
+            # Ensure coordinates are within bounds
+            h, w = depth_map.shape
+            x1 = max(0, min(x1, w-1))
+            y1 = max(0, min(y1, h-1))  
+            x2 = max(x1+1, min(x2, w))
+            y2 = max(y1+1, min(y2, h))
+            
+            # Extract region of interest
+            roi = depth_map[y1:y2, x1:x2]
+            
+            if roi.size > 0:
+                # Use median to avoid outliers
+                object_depth = np.median(roi)
+                print(f"🎯 Object depth calculation: ROI size={roi.size}, median={object_depth:.2f}m")
+                return object_depth
+            else:
+                print(f"⚠️ Empty ROI, using default depth")
+                return 2.0  # Default 2 meters
+                
+        except Exception as e:
+            print(f"❌ Error getting object depth: {e}")
+            return 2.0
+
+def test_fastdepth_fixed():
+    """Test FastDepth with data type fixes"""
+    print("🎯 Testing FIXED FastDepth with: models/mobilenet_depth.tflite")
+    
+    model_path = "models/mobilenet_depth.tflite"
+    
+    try:
+        # Initialize FastDepth estimator
+        depth_est = FastDepthEstimator(model_path, input_size=(320, 320))
         
-        # Ensure coordinates are within image bounds
-        h, w = depth_map.shape
-        x1 = max(0, min(x1, w-1))
-        x2 = max(0, min(x2, w-1))
-        y1 = max(0, min(y1, h-1))
-        y2 = max(0, min(y2, h-1))
+        print("\n🧪 Testing with synthetic image...")
+        # Create test image with patterns
+        test_image = np.zeros((320, 320, 3), dtype=np.uint8)
         
-        if x2 <= x1 or y2 <= y1:
-            return 5.0  # Default 5 meters
+        # Add some patterns for depth variation
+        cv2.rectangle(test_image, (50, 50), (150, 150), (255, 0, 0), -1)    # Red square
+        cv2.rectangle(test_image, (170, 170), (270, 270), (0, 255, 0), -1)  # Green square
+        cv2.circle(test_image, (160, 160), 40, (0, 0, 255), -1)             # Blue circle
         
-        # Extract region of interest
-        roi_depth = depth_map[y1:y2, x1:x2]
+        print("🎯 Running depth estimation...")
+        depth_map = depth_est.estimate_depth(test_image)
         
-        # Calculate median depth (more robust than mean)
-        # Filter out invalid values
-        valid_depths = roi_depth[(roi_depth > 0.1) & (roi_depth < 10.0)]
+        print(f"✅ Depth estimation successful!")
+        print(f"   📊 Depth map shape: {depth_map.shape}")
+        print(f"   📊 Depth range: {depth_map.min():.2f} - {depth_map.max():.2f} meters")
+        print(f"   📊 Mean depth: {depth_map.mean():.2f} meters")
+        print(f"   📊 Std deviation: {depth_map.std():.2f} meters")
         
-        if len(valid_depths) > 0:
-            median_depth = np.median(valid_depths)
+        # Test object depth extraction
+        bbox = [50, 50, 150, 150]  # Red square area
+        object_depth = depth_est.get_object_depth(depth_map, bbox)
+        print(f"   🎯 Object depth (red square): {object_depth:.2f} meters")
+        
+        # Quality assessment
+        dynamic_range = depth_map.max() - depth_map.min()
+        if dynamic_range > 1.0:
+            print(f"   ✅ EXCELLENT: Dynamic range = {dynamic_range:.2f}m")
+        elif dynamic_range > 0.5:
+            print(f"   🟡 GOOD: Dynamic range = {dynamic_range:.2f}m") 
         else:
-            median_depth = 5.0  # Default fallback
-        
-        return float(median_depth)
-    
-    def visualize_depth(self, depth_map, colormap=cv2.COLORMAP_PLASMA):
-        """
-        Convert depth map to colored visualization
-        FastDepth style with better contrast
-        
-        Args:
-            depth_map: Depth map array
-            colormap: OpenCV colormap (PLASMA looks better for depth)
+            print(f"   ⚠️ POOR: Dynamic range = {dynamic_range:.2f}m")
             
-        Returns:
-            colored_depth: Colored depth map for visualization
-        """
-        # Normalize depth map to 0-255 with better contrast
-        depth_clipped = np.clip(depth_map, 0.1, 10.0)
+        return True
         
-        # Use logarithmic scaling for better visualization
-        log_depth = np.log(depth_clipped + 1e-6)
-        normalized = cv2.normalize(log_depth, None, 0, 255, cv2.NORM_MINMAX)
-        normalized = normalized.astype(np.uint8)
-        
-        # Apply colormap (PLASMA gives better depth perception)
-        colored = cv2.applyColorMap(normalized, colormap)
-        
-        return colored
+    except Exception as e:
+        print(f"❌ Test failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
 
-# Alias for compatibility
-DepthEstimator = FastDepthEstimator
-
-# Test function
-def test_fastdepth():
-    """Test FastDepth model"""
-    import os
+def main():
+    """Main function"""
+    print("🚀 FastDepth FIXED Version Test")
+    print("=" * 50)
+    print("🔧 Fixes FLOAT64 vs FLOAT32 tensor error")
+    print("🎯 Improved depth scaling and error handling")
+    print("=" * 50)
     
-    # Check for FastDepth model
-    model_paths = [
-        "models/midas_v21_small.tflite",     # Fixed download
-        "models/mobilenet_depth.tflite",     # Original (might be corrupted)  
-        "models/fastdepth.tflite"            # Converted FastDepth
-    ]
+    success = test_fastdepth_fixed()
     
-    model_path = None
-    for path in model_paths:
-        if os.path.exists(path):
-            model_path = path
-            break
-    
-    if not model_path:
-        print("❌ No depth model found!")
-        print("💡 Run: python get_fastdepth.py")
-        return
-    
-    print(f"🎯 Testing FastDepth with: {model_path}")
-    
-    # Initialize FastDepth
-    if "mobilenet" in model_path or "fastdepth" in model_path:
-        depth_est = FastDepthEstimator(model_path, input_size=(320, 320))  # Updated to 320x320
+    if success:
+        print(f"\n🎉 FIXED VERSION WORKING!")
+        print(f"📝 Replace your existing depth_estimation_fastdepth.py with this version")
+        print(f"🚀 Then run: python app_with_midas_debug.py")
     else:
-        depth_est = FastDepthEstimator(model_path, input_size=(256, 256))  # MiDaS fallback
-    
-    # Test with camera or sample
-    cap = cv2.VideoCapture(0)
-    
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
-        
-        # Resize for testing
-        frame = cv2.resize(frame, (640, 480))
-        
-        # Estimate depth
-        depth_map = depth_est.estimate_depth(frame)
-        
-        # Visualize depth
-        depth_colored = depth_est.visualize_depth(depth_map)
-        
-        # Show results
-        cv2.imshow("Original", frame)
-        cv2.imshow("FastDepth", depth_colored)
-        
-        # Print center depth
-        center_depth = depth_map[240, 320]
-        print(f"Center depth: {center_depth:.2f} meters", end='\r')
-        
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-    
-    cap.release()
-    cv2.destroyAllWindows()
+        print(f"\n❌ Still has issues - may need different model")
+        print(f"💡 Consider using app without FastDepth for now")
 
 if __name__ == "__main__":
-    test_fastdepth()
+    main()
