@@ -63,7 +63,7 @@ timestamps = deque(maxlen=60)
 from ultralytics import YOLO
 
 # Load your trained weights
-model = YOLO("suBest3.pt")
+model = YOLO("./models/suBest3.pt")
 
 # Run inference
 # results = model("test.jpg")   # or a video, webcam, etc.
