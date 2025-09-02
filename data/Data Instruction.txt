@@ -1,0 +1,8 @@
+If you want to add some dataset to train, try find some dataset that include;
+- Train
+- Test
+- Valid
+- data.yaml
+
+For an example you can download some dataset from website named Roboflow like the link shortcut in this directory
+It's avalaible to download for free. It's also the dataset we used in this project
