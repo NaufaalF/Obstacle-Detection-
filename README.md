@@ -1,0 +1,46 @@
+
+# Obstacle Detection with Length Estimation
+
+An Obstacle detection website created for a driving scenario that detects Cars, Motorcycle, Truck, and person to ensure safe driving distance with the detected Obstacle.
+
+
+## Getting Started
+Please note that this project already includes a pre-trained model. You have two options:
+
+1. Run the program immediately using the existing model.
+2. Train a new model by following a few additional steps.
+\
+If you choose to train your own model, please complete the "TRAIN THE MODEL" section first, then proceed to "RUN THE MAIN PROGRAM".
+
+## Train the Model
+**!!! HARDWARE RECOMMENDATION !!!**\
+For the training process, we strongly recommend using a device with a high-end graphics card (e.g., NVIDIA GeForce series).
+Disclaimer: These training steps have only been tested on an NVIDIA RTX 3050. Compatibility and performance on other graphics cards are not guaranteed.
+
+1. Navigate to the `data` folder in the project directory.
+2. Read and follow the instructions in the `DATA INSTRUCTIONS.txt` file.
+3. Once completed, open and run the `Training.ipynb` notebook.
+4. In the notebook, edit all necessary parameters (e.g., directory names, sources, destinations).
+5. Run all cells in the notebook.
+    >*Note: This process can take a significant amount of time, depending on your dataset size and configuration.*
+6. When finished, a new model file will be created and saved in the "runs" directory.
+7. The model will be named `best.pt` by default, or the custom name you specified.
+8. Your custom model is now ready to use!
+
+## Run the Main program
+1. Run the `app.py` script.
+2. Open the script and edit all necessary parameters, such as directory paths and the model's location (`best.pt` or your custom model).
+3. Execute the file in your terminal (e.g., using a "Run Python File in Terminal" command or by typing `python app.py`).
+4. The terminal will display output similar to this:
+```
+	* Serving Flask app 'app'
+ 	* Debug mode: off
+	WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ 	* Running on all addresses (0.0.0.0)
+ 	* Running on http://127.x.x.x:xxxx
+ 	* Running on http://192.xxx.x.xxx:xxxx
+```
+5. Copy one of the http links and paste it into your web browser.
+6. http://127.x.x.x:xxxx is for local access on your current device only.
+7. http://192.xxx.x.xxx:xxxx is for accessing the app from other devices on the same Wi-Fi network.
+8. The application should now be running in your browser.
