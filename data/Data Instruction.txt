@@ -4,10 +4,12 @@ If you want to add some dataset to train, try find some dataset that include:
 - Valid
 - data.yaml
 
-For an example you can download some dataset from website named Roboflow like the link shortcut in this directory
-It's avalaible to download for free. It's also the dataset we used in this project
+For an example you can download some dataset from website named Roboflow like the link below 
+It's available to download for free. It's also the dataset we used in this project.
+You can check the whole dataset on our roboflow project:
+https://universe.roboflow.com/models/object-detection
 
 After download the dataset, extract the compressed dataset and then move everything inside to this directory
 
-Remember, these steps was unecessarry if you just want to run the program immediately.
+Remember, these steps was unnecessary if you just want to run the program immediately.
 These additional steps were only made to those who want to know about the process of making a Machine Learning model.
